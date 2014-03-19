@@ -3,12 +3,13 @@
 
 #include <Timer.h>
 
-
 // Nathan Amarandos - Team 3045
 // With meddling from some others...
 
+// we maybe should try to parameterize this using NetworkTables
+
 #define autonomous_Forward_Speed -1.0	// how fast to move
-#define autonomous_Forward_Time 1.0		// how long to move
+#define autonomous_Forward_Time 0.5		// how long to move
 #define autonomous_Settle_Time 0.25		// how long to settle down before firing
 
 class File2014 : public SimpleRobot
@@ -35,7 +36,6 @@ class File2014 : public SimpleRobot
 public:
 	NetworkTable *table;
 	
-	
 	File2014():
 		
 	
@@ -57,50 +57,55 @@ public:
 		shooterSole(2,3)
 	{
 		myRobot.SetExpiration(0.1);
-#if 1
 		table = NetworkTable::GetTable("3045RobotVision");
 		table->PutBoolean("hotTarget", false);
 		table->PutBoolean("coldTarget", true);
 		printf("putBoolean\n");
-#endif
 	}
 
-	void Autonomous()
+// factor motor directions into a common function
+// inverting all true for the bagged robot
+	void SetMotorDirections()
 	{
-		myRobot.SetSafetyEnabled(true);
 		myRobot.SetInvertedMotor(myRobot.kRearLeftMotor, true);
 		myRobot.SetInvertedMotor(myRobot.kRearRightMotor, true);
 		myRobot.SetInvertedMotor(myRobot.kFrontLeftMotor, true);
 		myRobot.SetInvertedMotor(myRobot.kFrontRightMotor, true);
-		shooterSole.Set(shooterSole.kForward);
-		compressor.Start();
+	}
 	
-#if 0
-		myRobot.Drive(autonomous_Forward_Speed,0);	// go forward (backward!) at speed x...
-		Wait(autonomous_Forward_Time);				// for time y...
-		myRobot.Drive(0,0);							// stop again
-		Wait(autonomous_Settle_Time);	// settle down for a bit
-		
-		myRobot.Drive(autonomous_Forward_Speed,0);	// go forward (backward!) at speed x...
-		Wait(autonomous_Forward_Time);				// for time y...
-		myRobot.Drive(0,0);							// stop again
-		Wait(autonomous_Settle_Time);	// settle down for a bit
-		
-		myRobot.Drive(autonomous_Forward_Speed,0);	// go forward (backward!) at speed x...
-		Wait(autonomous_Forward_Time);				// for time y...
-		myRobot.Drive(0,0);							// stop again
-		Wait(autonomous_Settle_Time);	// settle down for a bit
+	void Autonomous()
+	{
+		myRobot.SetSafetyEnabled(true);
 
-#endif
+		SetMotorDirections();
+
+		shooterSole.Set(shooterSole.kForward);
+
+		compressor.Start();
 
 #if 1
 		double cumTime = 0.0;
+		double startTime = 0.0;
 		autonTimer.Start();
-		double startTime = autonTimer.Get();
+
+// drive for autonomous_Forward_Time
+		startTime = autonTimer.Get();
 		table->PutNumber("startTime", startTime);
 		cumTime = autonTimer.Get();
-		while ((cumTime-startTime) < 0.5) {
+		while ((cumTime-startTime) < autonomous_Forward_Time) {
 			myRobot.Drive(autonomous_Forward_Speed, 0.0);
+			cumTime = autonTimer.Get();
+			table->PutNumber("cumTime", cumTime);
+			printf("time: %g\n", cumTime);
+		}
+		printf("time: %g\n", cumTime);
+
+// settle for autonomous_Settle_Time
+		startTime = autonTimer.Get();
+		table->PutNumber("startTime", startTime);
+		cumTime = autonTimer.Get();
+		while ((cumTime-startTime) < autonomous_Settle_Time) {
+			myRobot.Drive(0.0, 0.0);
 			cumTime = autonTimer.Get();
 			table->PutNumber("cumTime", cumTime);
 			printf("time: %g\n", cumTime);
@@ -109,7 +114,8 @@ public:
 #endif				
 	
 		table->GetBoolean("hotTarget");
-#if 1		
+
+#if 0		
 		bool stop = true;
 		if (shoot.Get())
 			stop = false;
@@ -129,10 +135,6 @@ public:
 		Wait(0.5);
 		myRobot.Drive(0,0); 
 #endif
-		
-#if 0
-		table->GetBoolean("hotTarget");
-#endif
 	}
 	
 	void OperatorControl()
@@ -140,11 +142,7 @@ public:
 		myRobot.SetSafetyEnabled(true);
 		GetWatchdog().SetEnabled(true);
 		compressor.Start();
-		//Inverting all true for bag
-		myRobot.SetInvertedMotor(myRobot.kRearLeftMotor, true);
-		myRobot.SetInvertedMotor(myRobot.kRearRightMotor, true);
-		myRobot.SetInvertedMotor(myRobot.kFrontLeftMotor, true);
-		myRobot.SetInvertedMotor(myRobot.kFrontRightMotor, true);
+		SetMotorDirections();
 		shooterSole.Set(shooterSole.kForward);
 	
 		printf("OperatorControlStart\n");
