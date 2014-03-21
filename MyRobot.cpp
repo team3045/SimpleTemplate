@@ -39,7 +39,7 @@ public:
 	File2014():
 		
 	
-		myRobot(1, 2,3,8),	
+		myRobot(1, 2),	
 		stickA(1),		
 		stickN(2),
 		
@@ -60,6 +60,7 @@ public:
 		table = NetworkTable::GetTable("3045RobotVision");
 		table->PutBoolean("hotTarget", false);
 		table->PutBoolean("coldTarget", true);
+		table->PutNumber("throttle", 0.0);
 		printf("putBoolean\n");
 	}
 
@@ -75,15 +76,19 @@ public:
 	
 	void Autonomous()
 	{
-		myRobot.SetSafetyEnabled(true);
+//		we maybe need to figure out how to run this safely with "true", but for now...
+		myRobot.SetSafetyEnabled(false);
+		//GetWatchdog().SetEnabled(true);
 
 		SetMotorDirections();
 
 		shooterSole.Set(shooterSole.kForward);
 
 		compressor.Start();
+		
+		printf("AutonomousStart - new\n");
 
-#if 1
+#if 0
 		double cumTime = 0.0;
 		double startTime = 0.0;
 		autonTimer.Start();
@@ -112,10 +117,51 @@ public:
 		}
 		printf("time: %g\n", cumTime);
 #endif				
-	
+
+#if 1
+		printf("start loop\n");
+		double throttle = 0.5;
+		table->PutNumber("throttle", throttle);
+		bool firstTime = true;
+		while (true) {
+			if (firstTime) {
+				printf("start inner loop\n");
+				firstTime = false;
+			}
+			myRobot.Drive(0.0, 0.0);
+			throttle = table->GetNumber("throttle");
+			if (throttle != 0.0) {
+				table->PutNumber("throttle", 0.0);
+
+				double cumTime = 0.0;
+				double startTime = 0.0;
+				autonTimer.Start();
+
+		// drive for autonomous_Forward_Time
+				startTime = autonTimer.Get();
+				table->PutNumber("startTime", startTime);
+				cumTime = autonTimer.Get();
+				printf("time start: %g\n", cumTime);
+				while ((cumTime-startTime) < 1.00) {
+					myRobot.Drive(throttle, 0.0);
+					cumTime = autonTimer.Get();
+					table->PutNumber("cumTime", cumTime);
+									}
+				printf("time end: %g\n", cumTime);
+	// stop
+				myRobot.Drive(0.0, 0.0);
+			}
+		}
+#endif				
+		
 		table->GetBoolean("hotTarget");
 
 #if 0		
+		printf("drive auton one half\n");
+		myRobot.Drive(-1,0);
+		Wait(0.5);
+		myRobot.Drive(0,0); 
+
 		bool stop = true;
 		if (shoot.Get())
 			stop = false;
@@ -134,6 +180,7 @@ public:
 		myRobot.Drive(-1,0);
 		Wait(0.5);
 		myRobot.Drive(0,0); 
+		printf("drive auton two half\n");
 #endif
 	}
 	
@@ -145,7 +192,7 @@ public:
 		SetMotorDirections();
 		shooterSole.Set(shooterSole.kForward);
 	
-		printf("OperatorControlStart\n");
+		printf("OperatorControlStart - new\n");
 		
 		while (true)
 		{
